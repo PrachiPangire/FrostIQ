@@ -11,10 +11,16 @@ dist/
 # Jupyter
 .ipynb_checkpoints/
 
-# Generated data and trained models (re-creatable from code)
+# Generated data and trained models
 data/raw/*
 data/processed/*
 models/*
+
+# Include the dataset and trained model required by the deployed website
+!data/raw/synthetic_readings.csv
+!models/frostiq_model.joblib
+
+# Keep directory placeholders
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !models/.gitkeep

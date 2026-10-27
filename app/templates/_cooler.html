@@ -1,0 +1,105 @@
+{#
+  Reusable 3D-style cold-chain container illustration (layered SVG, not a 3D model).
+
+  cooler(uid, state, label, value, unit)
+    uid    unique prefix for SVG ids (several coolers can share a page)
+    state  idle | safe | warning | unsafe | door | power | gradual | ambient
+    label/value/unit  text for the glowing display on the front face.
+  JavaScript can change data-state and the [data-cooler-label] / [data-cooler-value] text.
+#}
+{% macro cooler(uid, state="idle", label="", value="", unit="") %}
+<div class="cooler" id="{{ uid }}" data-state="{{ state }}">
+  <div class="cooler-tilt">
+    <svg class="cooler-svg" viewBox="0 0 520 540" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="{{ uid }}-left" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" class="g-glow" stop-opacity=".34"/><stop offset="1" class="g-glow" stop-opacity=".04"/>
+        </linearGradient>
+        <linearGradient id="{{ uid }}-right" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0" class="g-glow-2" stop-opacity=".30"/><stop offset="1" class="g-glow-2" stop-opacity=".03"/>
+        </linearGradient>
+        <linearGradient id="{{ uid }}-top" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" class="g-glow" stop-opacity=".42"/><stop offset="1" class="g-glow-2" stop-opacity=".12"/>
+        </linearGradient>
+        <linearGradient id="{{ uid }}-scan" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" class="g-glow" stop-opacity="0"/><stop offset=".5" class="g-glow" stop-opacity=".45"/><stop offset="1" class="g-glow" stop-opacity="0"/>
+        </linearGradient>
+        <radialGradient id="{{ uid }}-floor" cx=".5" cy=".5" r=".5">
+          <stop offset="0" class="g-glow" stop-opacity=".32"/><stop offset="1" class="g-glow" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="{{ uid }}-shadow" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#000" stop-opacity=".75"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="{{ uid }}-glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <clipPath id="{{ uid }}-clip"><polygon points="120,222 260,152 400,222 400,380 260,450 120,380"/></clipPath>
+      </defs>
+
+      <!-- warm surroundings (ambient scene) -->
+      <g class="haze" fill="none" stroke="#f7b955" stroke-opacity=".35" stroke-width="2" stroke-linecap="round">
+        <path d="M40 140 q 20 -14 40 0 t 40 0 t 40 0"/>
+        <path d="M360 110 q 20 -14 40 0 t 40 0 t 40 0"/>
+        <path d="M20 300 q 20 -14 40 0 t 40 0"/>
+        <path d="M430 290 q 20 -14 40 0 t 40 0"/>
+      </g>
+
+      <!-- floor: shadow, glow and scanning rings -->
+      <ellipse cx="260" cy="488" rx="170" ry="30" fill="url(#{{ uid }}-shadow)"/>
+      <ellipse cx="260" cy="482" rx="210" ry="54" fill="url(#{{ uid }}-floor)"/>
+      <ellipse class="tint ring-dash" cx="260" cy="482" rx="196" ry="48" fill="none" stroke-opacity=".5" stroke-width="1.2"/>
+      <ellipse class="tint-2" cx="260" cy="482" rx="146" ry="35" fill="none" stroke-opacity=".3" stroke-width="1"/>
+      <ellipse class="tint ring-pulse" cx="260" cy="482" rx="176" ry="43" fill="none" stroke-width="1.4"/>
+
+      <g class="cooler-body">
+        <g filter="url(#{{ uid }}-glow)" stroke-linejoin="round">
+          <!-- body faces -->
+          <polygon class="tint" points="120,240 260,310 260,450 120,380" fill="url(#{{ uid }}-left)" stroke-width="1.6"/>
+          <polygon class="tint-2" points="260,310 400,240 400,380 260,450" fill="url(#{{ uid }}-right)" stroke-width="1.6"/>
+          <!-- inner rim visible when the lid lifts -->
+          <polygon class="tint" points="260,170 390,236 260,302 130,236" fill="#020611" fill-opacity=".85" stroke-opacity=".6" stroke-width="1"/>
+          <!-- lid -->
+          <g class="cooler-lid">
+            <polygon class="tint" points="120,222 260,292 260,310 120,240" fill-opacity=".16" style="fill: currentColor" stroke-width="1.4"/>
+            <polygon class="tint-2" points="260,292 400,222 400,240 260,310" fill-opacity=".18" style="fill: currentColor" stroke-width="1.4"/>
+            <polygon class="tint" points="260,152 400,222 260,292 120,222" fill="url(#{{ uid }}-top)" stroke-width="1.6"/>
+            <path class="tint" d="M215 225 Q 260 188 305 225" fill="none" stroke-width="3" stroke-linecap="round"/>
+          </g>
+        </g>
+        <!-- inner wireframe and edge highlights for depth -->
+        <g class="tint" fill="none" stroke-opacity=".35" stroke-width="1" stroke-dasharray="4 6">
+          <polyline points="140,258 260,318 380,258"/>
+          <line x1="260" y1="318" x2="260" y2="432"/>
+          <polyline points="140,320 260,380 380,320"/>
+        </g>
+        <line x1="260" y1="310" x2="260" y2="450" stroke="#fff" stroke-opacity=".35" stroke-width="1.2"/>
+        <!-- medical cross on right face -->
+        <g transform="matrix(1 -0.5 0 1 330 355)" filter="url(#{{ uid }}-glow)">
+          <rect class="tint-fill" x="-9" y="-26" width="18" height="52" rx="3" fill-opacity=".85"/>
+          <rect class="tint-fill" x="-26" y="-9" width="52" height="18" rx="3" fill-opacity=".85"/>
+        </g>
+        <!-- cold vapour (cooling active) -->
+        <g class="frost" fill="#a5ecff">
+          <circle cx="200" cy="215" r="2" style="--d:0s"/><circle cx="250" cy="200" r="1.6" style="--d:1.2s"/>
+          <circle cx="300" cy="210" r="2.2" style="--d:2.1s"/><circle cx="330" cy="225" r="1.5" style="--d:3s"/>
+          <circle cx="230" cy="230" r="1.4" style="--d:3.6s"/>
+        </g>
+        <!-- warm air entering (door scene) -->
+        <g class="warm-air" fill="none" stroke="#f7b955" stroke-width="2.4" stroke-linecap="round">
+          <path d="M60 170 C 130 150 170 200 240 190"/>
+          <path d="M470 160 C 400 150 360 200 290 195"/>
+          <path d="M80 210 C 150 200 190 230 250 215"/>
+        </g>
+        <g clip-path="url(#{{ uid }}-clip)">
+          <rect class="scan" x="100" y="140" width="320" height="38" fill="url(#{{ uid }}-scan)"/>
+        </g>
+      </g>
+    </svg>
+    <div class="cooler-display" aria-hidden="true">
+      <span class="lbl" data-cooler-label>{{ label }}</span>
+      <span class="val"><span data-cooler-value>{{ value }}</span>{% if unit %}<small>{{ unit }}</small>{% endif %}</span>
+    </div>
+  </div>
+</div>
+{% endmacro %}

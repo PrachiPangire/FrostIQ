@@ -264,7 +264,7 @@ def _parse_timestamps(values: pd.Series) -> pd.Series:
     return parsed
 
 
-def _validate_label_input(readings: pd.DataFrame) -> pd.DataFrame:
+def validate_readings(readings: pd.DataFrame) -> pd.DataFrame:
     """Check required columns and values; return a copy with parsed timestamps."""
     absent = [c for c in LABEL_INPUT_COLUMNS if c not in readings.columns]
     if absent:
@@ -319,7 +319,7 @@ def add_threshold_labels(readings: pd.DataFrame, threshold_c: float = DEFAULT_TH
     somewhere between the last reading at or below the threshold and the first
     reading above it.
     """
-    out = _validate_label_input(readings)
+    out = validate_readings(readings)
     out = out.sort_values(["journey_id", "timestamp"], kind="stable").reset_index(drop=True)
     temps = out["temperature_c"].to_numpy(dtype=float)
     status = np.empty(len(out), dtype=object)

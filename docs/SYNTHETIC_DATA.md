@@ -81,6 +81,11 @@ What the default run (120 journeys, seed 42, threshold 8.0 °C) actually produce
 These outcomes describe this seed only. A different seed or more journeys will
 give somewhat different counts and ranges.
 
+From Milestone 2 onwards the project uses **500 journeys**
+(`python -m frostiq.simulate --n-journeys 500`, still seed 42). That run produced
+153 normal, 147 door-opening, 107 gradual-warming and 93 fast-warming journeys,
+of which 0, 83, 50 and 93 crossed 8 °C. See [FEATURES.md](FEATURES.md).
+
 ## All numeric assumptions
 
 Every value lives in `SimulationConfig` in `simulate.py`. Ranges are sampled

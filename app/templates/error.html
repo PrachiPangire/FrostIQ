@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}FrostIQ · {{ code }}{% endblock %}
+{% block content %}
+<section class="wrap error-page">
+  <div class="code">{{ code }}</div>
+  <p class="muted">{{ message }}</p>
+  <p><a class="btn btn-ghost" href="{{ url_for('frostiq.index') }}">Back to FrostIQ</a>
+     <a class="btn btn-primary" href="{{ url_for('frostiq.dashboard') }}">Monitoring Console</a></p>
+</section>
+{% endblock %}

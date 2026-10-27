@@ -1,0 +1,56 @@
+{#
+  AI Prediction Centre: exactly two cards, Classification and Regression.
+  Values are filled in by static/js/prediction-centre.js from the JSON API
+  (`classification` and `regression` blocks). Nothing here is a hardcoded result.
+#}
+{% macro prediction_centre(uid, threshold_c=8.0, horizon_min=120) %}
+<section class="pc" id="{{ uid }}" aria-labelledby="{{ uid }}-title" data-pc>
+  <header class="pc-head">
+    <div>
+      <span class="kicker" id="{{ uid }}-title">AI Prediction Centre</span>
+      <p class="pc-sub">Looks ahead for possible temperature trouble, using only the readings recorded so far. Predictions are experimental and based on <b>simulated</b> data.</p>
+    </div>
+  </header>
+
+  <div class="pc-cards">
+    <article class="pc-card pc-class" data-pc-card="classification" data-state="idle" aria-live="polite">
+      <div class="pc-top">
+        <h3>Classification</h3>
+        <span class="pc-label">Risk decision</span>
+      </div>
+      <p class="pc-q">“Will the temperature cross {{ '%g' % threshold_c }}°C within the next {{ '%g' % horizon_min }} minutes?”</p>
+      <p class="pc-out-label">Answer: FLAGGED / NOT FLAGGED</p>
+      <div class="pc-value" data-pc-value>—</div>
+      <div class="pc-meter" data-pc-meter hidden aria-hidden="true">
+        <span class="pc-meter-fill" data-pc-fill></span><span class="pc-meter-mark"></span>
+      </div>
+      <p class="pc-detail" data-pc-detail>Waiting for a journey…</p>
+      <p class="pc-expl">Predicts whether a threshold crossing is likely within the prediction horizon.</p>
+      <p class="pc-meaning"><b>FLAGGED</b> means the temperature will probably go above {{ '%g' % threshold_c }}°C in the next {{ '%g' % horizon_min }} minutes.
+        <b>NOT FLAGGED</b> means no problem is expected in that time. It's a forecast, not something that has happened.</p>
+      <span class="pc-model">RandomForestClassifier</span>
+    </article>
+
+    <article class="pc-card pc-reg" data-pc-card="regression" data-state="idle" aria-live="polite">
+      <div class="pc-top">
+        <h3>Regression</h3>
+        <span class="pc-label">Numeric estimate</span>
+        <span class="pc-exp">Experimental</span>
+      </div>
+      <p class="pc-q">“If a crossing is estimated, how many minutes until it happens?”</p>
+      <p class="pc-out-label">Answer: Estimated minutes</p>
+      <div class="pc-value" data-pc-value>—</div>
+      <p class="pc-detail" data-pc-detail>Waiting for a journey…</p>
+      <p class="pc-expl">Predicts a numerical estimate of time to breach.</p>
+      <p class="pc-meaning">A rough, experimental guess of how many minutes are left before the temperature goes above {{ '%g' % threshold_c }}°C.
+        It's not a guaranteed warning time: in tests it was often too late.</p>
+      <span class="pc-model">HistGradientBoostingRegressor</span>
+    </article>
+  </div>
+
+  <p class="pc-diff">
+    <b class="c">Classification</b> answers a yes/no risk question: “Is a problem likely soon?”
+    <b class="r">Regression</b> estimates a number, such as minutes until a possible breach: “How long until it might happen?”
+  </p>
+</section>
+{% endmacro %}

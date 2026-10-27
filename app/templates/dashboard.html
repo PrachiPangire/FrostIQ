@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% from "_prediction_centre.html" import prediction_centre %}
+{% block title %}FrostIQ · Monitoring console{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}">{% endblock %}
+{% block content %}
+<div class="wrap console" id="console"
+     data-selected="{{ selected }}" data-threshold="{{ threshold_c }}"
+     data-api-journeys="{{ url_for('frostiq.api_journeys') }}"
+     data-api-journey="{{ url_for('frostiq.api_journey', journey_id='__ID__') }}">
+
+  <div class="console-head">
+    <div>
+      <span class="kicker">Monitoring console</span>
+      <h1>Temperature readings, journey history and observed crossings</h1>
+    </div>
+    <span class="replay-badge"><span class="dot amber"></span>Simulated data, replayed · not live telemetry</span>
+  </div>
+
+  {% if data_error %}
+  <div class="notice error" role="alert"><strong>Dataset unavailable.</strong> {{ data_error }}</div>
+  {% else %}
+  {% if unknown_journey %}<p class="notice warn" role="status">The requested journey does not exist; showing {{ selected }} instead.</p>{% endif %}
+  {% if model_error %}<p class="notice warn" role="status"><strong>Predictions unavailable.</strong> {{ model_error }} Temperatures, history and status rules still work.</p>{% endif %}
+  <p class="notice error" id="api-error" role="alert" hidden></p>
+
+  {# ---- 1. Toolbar: what to look at ---- #}
+  <div class="toolbar glass">
+    <div class="tool">
+      <label class="control-label" for="journey-select">Journey</label>
+      <select id="journey-select" aria-describedby="journey-count"><option>Loading journeys…</option></select>
+      <div class="chips" role="group" aria-label="Filter journeys">
+        <button class="chip" type="button" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" type="button" data-filter="test" aria-pressed="false">Held-out only</button>
+        <button class="chip" type="button" data-filter="crossed" aria-pressed="false">Crossed threshold</button>
+      </div>
+      <p class="sub" id="journey-count"></p>
+    </div>
+    <div class="tool">
+      <label class="control-label" for="threshold-input">Threshold (°C)</label>
+      <form class="field" id="threshold-form">
+        <input id="threshold-input" type="number" step="0.1" min="-30" max="50" value="{{ '%g' % threshold_c }}" required>
+        <button class="btn btn-ghost btn-sm" type="submit">Apply</button>
+        <button class="btn btn-ghost btn-sm" type="button" id="threshold-reset">Reset</button>
+      </form>
+      <p class="sub">Experimental default {{ '%g' % threshold_c }} °C. Crossing = reading strictly above it.</p>
+      <p class="sub amber-text" id="threshold-note" hidden></p>
+    </div>
+  </div>
+
+  {# ---- Empty state when a filter matches nothing ---- #}
+  <div class="empty-state glass" id="empty-state" role="status" hidden>
+    <h2>No journeys match this filter</h2>
+    <p class="muted">Nothing is displayed so that no readings are shown for a journey you didn't select. Choose another filter to continue.</p>
+    <button type="button" class="btn btn-ghost btn-sm" id="empty-reset">Show all journeys</button>
+  </div>
+
+  <div id="journey-view">
+    {# ---- 2. Now: where we are in the replay ---- #}
+    <div class="now-bar">
+      <span class="now-journey"><b id="now-journey">—</b> <span class="muted" id="now-scenario"></span></span>
+      <span class="badge" id="split-badge" hidden></span>
+      <span class="now-pos mono" id="now-position"></span>
+    </div>
+
+    {# ---- 3. What was recorded (observed) ---- #}
+    <div class="key-grid">
+      <div class="card glass" id="temp-card">
+        <span class="card-title">Recorded temperature <span class="pill">observed</span></span>
+        <div class="big" id="latest-temp">—</div>
+        <div class="sub" id="latest-time"></div>
+        <div class="margin-line"><span class="sub">Margin to threshold</span> <b class="mono" id="margin">—</b></div>
+        <div class="sub" id="threshold-text"></div>
+      </div>
+      <div class="card glass status-card" id="status-card" data-level="">
+        <span class="card-title">Recorded status <span class="pill">observed</span></span>
+        <div class="level" id="status-level" data-level="">—</div>
+        <ul class="reasons" id="status-reasons"></ul>
+      </div>
+    </div>
+
+    {# ---- 4. What the models predict ---- #}
+    <div class="pc-wrap glass">
+      {{ prediction_centre("console-pc", threshold_c=card.threshold_c if card else threshold_c, horizon_min=horizon_min) }}
+    </div>
+
+    {# ---- 4. History chart + playback ---- #}
+    <div class="card glass chart-card">
+      <div class="card-head">
+        <span class="card-title">Temperature history</span>
+        <label class="toggle"><input type="checkbox" id="hindsight-toggle"> Show hindsight (future readings)</label>
+      </div>
+      <div class="chart-box">
+        <canvas id="temp-chart" aria-label="Temperature history chart" role="img"></canvas>
+        <div class="chart-fallback" id="chart-fallback" hidden>
+          The chart library could not be loaded (it comes from a CDN, so it needs internet access).
+          The latest {{ recent_readings }} readings are still listed under "Recent readings" below; the full history needs the chart.
+        </div>
+      </div>
+      <div class="chart-legend">
+        <span><span class="swatch" style="background:#38d6f5"></span>Recorded temperature</span>
+        <span><span class="swatch" style="background:#f7b955"></span>Threshold</span>
+        <span><span class="swatch" style="background:#ff6b81"></span>Above threshold</span>
+        <span id="legend-future" hidden><span class="swatch" style="background:#9db0cf"></span>Future readings (hindsight)</span>
+      </div>
+      <div class="playback">
+        <label class="sr-only" for="position-slider">Replay position</label>
+        <input id="position-slider" type="range" min="0" max="0" value="0" step="1" aria-describedby="position-label">
+        <div class="replay-row">
+          <button class="btn btn-ghost btn-sm btn-icon" type="button" id="step-back" aria-label="Previous reading">◀</button>
+          <button class="btn btn-primary btn-sm" type="button" id="play">▶ Play</button>
+          <button class="btn btn-ghost btn-sm btn-icon" type="button" id="step-fwd" aria-label="Next reading">▶</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="to-latest">Latest</button>
+          <span class="replay-pos" id="position-label" aria-live="polite"></span>
+        </div>
+      </div>
+      <p class="notice warn" id="hindsight-box" hidden></p>
+    </div>
+
+    {# ---- 5. Secondary details ---- #}
+    <div class="details-grid">
+      <details class="fold">
+        <summary>Journey summary</summary>
+        <div class="fold-body">
+          <dl class="kv">
+            <dt>ID</dt><dd id="j-id">—</dd>
+            <dt>Simulated scenario</dt><dd id="j-scenario">—</dd>
+            <dt>Readings shown</dt><dd id="j-readings">—</dd>
+            <dt>Elapsed</dt><dd id="j-duration">—</dd>
+            <dt>Min / mean / max</dt><dd id="j-range">—</dd>
+            <dt>Excursions so far</dt><dd id="j-excursions">—</dd>
+            <dt>Readings above</dt><dd id="j-above">—</dd>
+          </dl>
+          <p class="sub" id="split-note"></p>
+          <p class="sub">The scenario is the simulator's ground-truth label. The model never sees it.</p>
+        </div>
+      </details>
+      <details class="fold" open>
+        <summary>Recent readings (latest {{ recent_readings }})</summary>
+        <div class="fold-body table-wrap">
+          <table>
+            <thead><tr><th>Time (UTC)</th><th>Elapsed</th><th class="num">Temp °C</th><th>State</th></tr></thead>
+            <tbody id="recent-body"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </details>
+      <details class="fold">
+        <summary>Status rules</summary>
+        <div class="fold-body">
+          <ul class="legend-list">
+            <li><b class="coral-text">ABOVE THRESHOLD</b>: the latest reading is strictly above the threshold. Observed, not predicted.</li>
+            <li><b class="amber-text">WARNING</b>: not above, and the margin is ≤ {{ '%g' % warning_margin_c }} °C, or the classifier flags a likely crossing within the horizon.</li>
+            <li><b class="mint-text">NORMAL</b>: neither condition holds.</li>
+            <li>Estimates need ≥ {{ min_history_min }} min of readings and the model's training threshold.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="fold">
+        <summary>Model card &amp; limitations</summary>
+        <div class="fold-body">
+          {% if card %}
+          <dl class="kv">
+            <dt>Trained on</dt><dd>{{ card.train_journeys }} journeys</dd>
+            <dt>Held out</dt><dd>{{ card.test_journeys }} journeys</dd>
+            <dt>Threshold / horizon</dt><dd>{{ '%g' % card.threshold_c }} °C / {{ '%g' % card.horizon_min }} min</dd>
+            <dt>Held-out recall</dt><dd>{{ '%.3f' % card.recall }}</dd>
+            <dt>Held-out precision</dt><dd>{{ '%.3f' % card.precision }}</dd>
+            <dt>MAE, crossing readings</dt><dd>{{ '%.1f' % card.mae_crossing }} min</dd>
+            <dt>Late estimates (crossing readings)</dt><dd>{{ '%.1f' % card.late_pct }}%</dd>
+          </dl>
+          <p class="sub">Measured on held-out journeys at training time. Simulated data only; not validated for real medicines or vaccines.</p>
+          {% else %}
+          <p class="sub">No trained model. Run <code>python -m frostiq.model train</code>.</p>
+          {% endif %}
+        </div>
+      </details>
+    </div>
+  </div>
+  {% endif %}
+</div>
+<div class="loading" id="loading" hidden><span class="spinner"></span>Loading telemetry…</div>
+<script type="application/json" id="model-card">{{ card | tojson }}</script>
+{% endblock %}
+{% block scripts %}
+{% if not data_error %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"
+        integrity="sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG"
+        crossorigin="anonymous" defer></script>
+<script src="{{ url_for('static', filename='js/prediction-centre.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+{% endif %}
+{% endblock %}

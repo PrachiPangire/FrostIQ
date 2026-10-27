@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FrostIQ{% endblock %}</title>
+  <meta name="description" content="FrostIQ: an educational prototype exploring ML-based predictive cold-chain temperature monitoring on simulated journeys.">
+  <script>document.documentElement.classList.add("js");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/frostiq.css') }}">
+  {% block styles %}{% endblock %}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 29 9.5v13L16 30 3 22.5v-13z' fill='none' stroke='%2338d6f5' stroke-width='2.5'/%3E%3Cpath d='M16 9v14M10 12.5l12 7M22 12.5l-12 7' stroke='%234ff5c6' stroke-width='2.2'/%3E%3C/svg%3E">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% set home = url_for('frostiq.index') %}
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="{{ home }}#home" aria-label="FrostIQ home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="none" stroke="#38d6f5" stroke-width="2"/>
+          <path d="M16 9v14M10 12.5l12 7M22 12.5l-12 7" stroke="#4ff5c6" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>Frost<b>IQ</b></span>
+      </a>
+      <button class="nav-toggle" type="button" aria-controls="nav-links" aria-expanded="false" aria-label="Open menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <nav aria-label="Main">
+        <ul class="nav-links" id="nav-links">
+          <li><a href="{{ home }}#home" data-section="home">Home</a></li>
+          <li><a href="{{ home }}#problem" data-section="problem">The Problem</a></li>
+          <li><a href="{{ home }}#journey" data-section="journey">The Journey</a></li>
+          <li><a href="{{ home }}#how" data-section="how">How It Works</a></li>
+          <li><a href="{{ home }}#predict" data-section="predict">AI Predictions</a></li>
+          <li><a href="{{ home }}#performance" data-section="performance">Performance</a></li>
+          <li><a href="{{ home }}#limits" data-section="limits">Limitations</a></li>
+          <li class="nav-cta"><a class="btn btn-primary btn-sm" href="{{ url_for('frostiq.dashboard') }}"
+                 {% if request.endpoint == 'frostiq.dashboard' %}aria-current="page"{% endif %}>Monitoring Console</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>FrostIQ · educational prototype · simulated journeys only · not validated for real medicines or vaccines</span>
+      <span class="mono">Threshold {{ '%g' % threshold_c if threshold_c is defined else '8' }} °C is an experimental default</span>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/nav.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

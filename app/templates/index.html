@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% from "_cooler.html" import cooler %}
+{% from "_prediction_centre.html" import prediction_centre %}
+{% block title %}FrostIQ · Every vaccine has a journey{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/story.css') }}">{% endblock %}
+{% block content %}
+
+{# One WebGL canvas behind the whole story. Purely visual: all content is HTML. #}
+<canvas class="stage" id="stage" data-threshold="{{ '%g' % threshold_c }}" aria-hidden="true"></canvas>
+
+{# ---------------------------------------------------------------- 1. HERO #}
+<section class="scene hero" id="home" data-scene="home" aria-labelledby="hero-title">
+  <div class="wrap scene-grid">
+    <div class="scene-copy">
+      <span class="eyebrow reveal" style="--d:.05s"><span class="dot pulse"></span>Educational prototype · simulated journeys</span>
+      <h1 id="hero-title">
+        <span class="reveal" style="--d:.15s">Every vaccine has a <span class="accent">journey.</span></span>
+        <span class="hero-sub reveal" style="--d:.3s">Every degree matters.</span>
+      </h1>
+      <p class="hero-lede reveal" style="--d:.45s">
+        FrostIQ explores how machine learning can help identify temperature risks while
+        temperature-sensitive medicines travel from one place to another.
+      </p>
+      <div class="hero-cta reveal" style="--d:.6s">
+        <a class="btn btn-primary" href="#problem">Explore the story <span class="arrow down" aria-hidden="true">↓</span></a>
+        <a class="btn btn-ghost" href="{{ url_for('frostiq.dashboard') }}">Open Monitoring Console <span class="arrow" aria-hidden="true">→</span></a>
+      </div>
+      <p class="prototype-note reveal" style="--d:.7s">
+        <span aria-hidden="true">⚠</span>
+        <span>Educational prototype using simulated data. Not validated for, and not to be used with, real medicines or vaccines.</span>
+      </p>
+    </div>
+    <div class="scene-visual">
+      <div class="fallback-only">{{ cooler("hero-cooler", state="idle", label="Threshold", value='%g' % threshold_c, unit="°C") }}</div>
+      <p class="visual-caption">Interactive 3D cooler. The display shows the configured threshold, not a live reading.</p>
+    </div>
+  </div>
+  <a class="scroll-cue" href="#problem" aria-label="Scroll to the problem"><span></span></a>
+</section>
+
+{# ------------------------------------------------------------- 2. PROBLEM #}
+<section class="scene" id="problem" data-scene="problem" aria-labelledby="problem-title">
+  <div class="wrap scene-grid">
+    <div class="scene-copy">
+      <span class="kicker">01 · The problem</span>
+      <h2 id="problem-title">A journey can change everything</h2>
+      <p class="lead">A temperature-sensitive medicine begins its journey in a controlled environment. Over hours of
+        transport, ordinary events can push it warmer than intended. Scroll through them and watch the cooler.</p>
+      <ol class="scene-steps" aria-label="What can change during a journey">
+        <li class="scene-step is-active" data-scene-step="safe" data-label="Stable">
+          <button type="button" class="scene-btn" aria-pressed="true"><span class="scene-no">Start</span><span class="scene-title">It leaves a controlled environment</span></button>
+          <p>Packed in a cooled container, the medicine starts within its permitted range.</p>
+        </li>
+        <li class="scene-step" data-scene-step="door" data-label="Door open">
+          <button type="button" class="scene-btn" aria-pressed="false"><span class="scene-no">01</span><span class="scene-title">A door is left open</span></button>
+          <p>Warm air rushes in during loading or a stop. A short opening causes a quick spike.</p>
+        </li>
+        <li class="scene-step" data-scene-step="power" data-label="No power">
+          <button type="button" class="scene-btn" aria-pressed="false"><span class="scene-no">02</span><span class="scene-title">The power is interrupted</span></button>
+          <p>If the cooling unit stops, nothing pulls the temperature back down.</p>
+        </li>
+        <li class="scene-step" data-scene-step="gradual" data-label="Warming">
+          <button type="button" class="scene-btn" aria-pressed="false"><span class="scene-no">03</span><span class="scene-title">Cooling slowly weakens</span></button>
+          <p>A failing compressor doesn't stop at once. The temperature creeps up over hours.</p>
+        </li>
+        <li class="scene-step" data-scene-step="ambient" data-label="Hot outside">
+          <button type="button" class="scene-btn" aria-pressed="false"><span class="scene-no">04</span><span class="scene-title">It's warmer outside</span></button>
+          <p>Hot weather or a sunny loading bay means more heat leaks through the walls.</p>
+        </li>
+      </ol>
+      <div class="callout">
+        <h3>So is the medicine ruined?</h3>
+        <p>Not necessarily. The real risk depends on <strong>the specific medicine</strong>, its <strong>permitted storage
+          conditions</strong> and <strong>how long</strong> it was exposed. A single reading above a line doesn't automatically
+          make every product unusable. That judgement belongs to documented requirements and qualified people.</p>
+      </div>
+    </div>
+    <div class="scene-visual sticky-visual">
+      <div class="fallback-only">{{ cooler("problem-cooler", state="safe", label="Scene", value="Stable") }}</div>
+      <p class="visual-caption" id="problem-caption" aria-live="polite">Illustration · not recorded data</p>
+    </div>
+  </div>
+</section>
+
+{# ------------------------------------------------------------- 3. JOURNEY #}
+<section class="scene" id="journey" data-scene="journey" aria-labelledby="journey-title">
+  <div class="wrap scene-grid">
+    <div class="scene-copy">
+      <span class="kicker">02 · The journey</span>
+      <h2 id="journey-title">From cold store to clinic</h2>
+      <p class="lead">A shipment passes through several hands. A small sensor in the container logs the temperature every 5 minutes
+        along the whole route. Scroll to move the cooler along it.</p>
+      <ol class="route-list">
+        <li><b>Cold store</b> The shipment is packed and cooled.</li>
+        <li><b>Truck</b> Doors open at stops; the cooling runs on vehicle power.</li>
+        <li><b>Transfer hub</b> Waiting on a loading bay, sometimes in the sun.</li>
+        <li><b>Clinic</b> The container arrives. Was it kept cold enough all the way?</li>
+      </ol>
+      <p class="data-note">FrostIQ uses <b>{% if dataset %}{{ "{:,}".format(dataset.journeys) }}{% else %}simulated{% endif %} simulated journeys</b>
+        {% if dataset %}with <b>{{ "{:,}".format(dataset.readings) }} recorded readings</b>{% endif %}, generated by a heat-balance simulator.
+        No real shipment data is used.</p>
+    </div>
+    <div class="scene-visual"><p class="visual-caption">3D route illustration</p></div>
+  </div>
+</section>
+
+{# ---------------------------------------------------------------- 4. RISK #}
+<section class="scene" id="risk" data-scene="risk" aria-labelledby="risk-title">
+  <div class="wrap scene-grid">
+    <div class="scene-copy">
+      <span class="kicker">03 · Temperature risk</span>
+      <h2 id="risk-title">When does warm become a risk?</h2>
+      <p class="lead">FrostIQ compares each recorded reading with a <b>threshold</b>: {{ '%g' % threshold_c }} °C by default, an experimental choice for this simulation.
+        A <b>crossing</b> means a reading <em>strictly above</em> it.</p>
+      <ul class="levels">
+        <li class="lvl normal"><b>Normal</b> Below the threshold with more than 1 °C to spare.</li>
+        <li class="lvl warning"><b>Warning</b> Still below, but within 1 °C, or the classifier flags a likely crossing.</li>
+        <li class="lvl above"><b>Above threshold</b> A recorded reading went over the line. That is <em>observed</em>, not predicted.</li>
+      </ul>
+      <p class="risk-live" aria-live="polite">Illustration: <span id="risk-state">Normal: well below the threshold</span></p>
+      <div class="obs-vs-pred">
+        <div><span class="pill">observed</span> A temperature that was actually recorded.</div>
+        <div><span class="pill amber">predicted</span> A model's guess about the future, which can be wrong.</div>
+      </div>
+    </div>
+    <div class="scene-visual"><p class="visual-caption">Illustrative temperature column and threshold ring</p></div>
+  </div>
+</section>
+
+{# ----------------------------------------------------------------- 5. HOW #}
+<section class="scene" id="how" data-scene="how" aria-labelledby="how-title">
+  <div class="wrap scene-grid">
+    <div class="scene-copy">
+      <span class="kicker">04 · How the ML models work</span>
+      <h2 id="how-title">From readings to two predictions</h2>
+      <ol class="flow-list">
+        <li><span class="flow-no">1</span><div><b>Observe</b> Recorded readings so far: never future ones.</div></li>
+        <li><span class="flow-no">2</span><div><b>Describe the trend</b> 15 features: distance to the threshold, warming rate over 15–60 minutes, recent highs and lows, past excursions.</div></li>
+        <li><span class="flow-no c">3a</span><div><b class="c">Classification</b> A RandomForestClassifier answers <em>yes or no</em>: will it cross within {{ '%g' % horizon_min }} minutes?</div></li>
+        <li><span class="flow-no r">3b</span><div><b class="r">Regression</b> <span class="pc-exp">Experimental</span> A HistGradientBoostingRegressor estimates <em>how many minutes</em> until a crossing.</div></li>
+        <li><span class="flow-no">4</span><div><b>Understand</b> The website shows both, labels them as predictions, and explains when there's no valid answer.</div></li>
+      </ol>
+      <p class="data-note">Both models were trained on {% if card %}{{ card.train_journeys }}{% else %}the training{% endif %} journeys only. Whole journeys are held out for testing, so no journey is in both.</p>
+    </div>
+    <div class="scene-visual"><p class="visual-caption">Readings flow into the model core and out as two outputs: <span class="c">classification</span> and <span class="r">regression</span></p></div>
+  </div>
+</section>
+
+{# ------------------------------------------------------------- 6. PREDICT #}
+<section class="scene predict" id="predict" data-scene="predict" aria-labelledby="predict-title">
+  <div class="wrap">
+    <div class="scene-grid">
+      <div class="scene-copy">
+        <span class="kicker">05 · AI Prediction Centre</span>
+        <h2 id="predict-title">Try it on a recorded journey</h2>
+        <p class="lead">Choose a journey type and press play. The temperatures are recorded readings from a <b>simulated</b> journey the
+          models never saw while learning. The cooler shows what was recorded. The two cards below look ahead: will the
+          temperature go above the limit soon, and roughly how long until it might?</p>
+      </div>
+      <div class="scene-visual"><div class="fallback-only">{{ cooler("journey-cooler", state="idle", label="Recorded", value="—", unit="°C") }}</div></div>
+    </div>
+
+    {% if data_error %}
+    <p class="notice error" role="alert"><strong>Journey data unavailable.</strong> {{ data_error }}</p>
+    {% else %}
+    <div class="player glass" id="journey-story"
+         data-api-journeys="{{ url_for('frostiq.api_journeys') }}"
+         data-api-journey="{{ url_for('frostiq.api_journey', journey_id='__ID__') }}"
+         data-console="{{ url_for('frostiq.dashboard') }}"
+         data-threshold="{{ threshold_c }}">
+      <div class="player-top">
+        <div class="scenario-picker" role="group" aria-label="Choose a scenario">
+          <button type="button" class="chip" data-scenario="normal" aria-pressed="false">Steady cooling</button>
+          <button type="button" class="chip" data-scenario="door_openings" aria-pressed="false">Door openings</button>
+          <button type="button" class="chip" data-scenario="gradual_warming" aria-pressed="false">Gradual warming</button>
+          <button type="button" class="chip" data-scenario="fast_warming" aria-pressed="false">Power loss</button>
+        </div>
+        <p class="player-meta mono" id="js-journey-meta">Loading recorded journeys…</p>
+      </div>
+      <p class="scenario-text" id="js-scenario-text"></p>
+      <div class="player-body">
+        <div class="timeline">
+          <svg class="spark" id="js-spark" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Recorded temperature so far, with the threshold line">
+            <line class="spark-threshold" id="js-spark-threshold" x1="0" x2="600" y1="70" y2="70"/>
+            <path class="spark-area" id="js-spark-area" d=""/>
+            <path class="spark-line" id="js-spark-line" d=""/>
+            <circle class="spark-dot" id="js-spark-dot" r="5" cx="-10" cy="-10"/>
+          </svg>
+          <div class="timeline-controls">
+            <button type="button" class="btn btn-ghost btn-sm btn-icon" id="js-back" aria-label="Previous reading">◀</button>
+            <button type="button" class="btn btn-primary btn-sm" id="js-play">▶ Play</button>
+            <button type="button" class="btn btn-ghost btn-sm btn-icon" id="js-fwd" aria-label="Next reading">▶</button>
+            <label class="sr-only" for="js-range">Recorded time</label>
+            <input type="range" id="js-range" min="0" max="0" value="0" step="1">
+          </div>
+          <p class="timeline-label mono" id="js-time" aria-live="polite"></p>
+        </div>
+        <div class="readouts">
+          <div class="readout"><span class="readout-k">Recorded temperature <span class="pill">observed</span></span><span class="readout-v" id="js-temp">—</span></div>
+          <div class="readout"><span class="readout-k">Threshold</span><span class="readout-v" id="js-thr">{{ '%g' % threshold_c }} °C</span></div>
+          <div class="readout readout-wide" id="js-state-box" data-level=""><span class="readout-k">Recorded status <span class="pill">observed</span></span><span class="readout-v" id="js-state">—</span><span class="readout-note" id="js-state-note"></span></div>
+        </div>
+      </div>
+      {{ prediction_centre("home-pc", threshold_c=threshold_c, horizon_min=horizon_min) }}
+      <p class="journey-error notice error" id="js-error" role="alert" hidden></p>
+      <div class="journey-actions">
+        <a class="btn btn-ghost btn-sm" id="js-open-moment" href="{{ url_for('frostiq.dashboard') }}">Open this moment in the console</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('frostiq.dashboard') }}">Open full monitoring console <span class="arrow" aria-hidden="true">→</span></a>
+      </div>
+    </div>
+    <noscript><p class="notice warn">The interactive journey needs JavaScript. You can still open the <a href="{{ url_for('frostiq.dashboard') }}">monitoring console</a>.</p></noscript>
+    {% endif %}
+  </div>
+</section>
+
+{# --------------------------------------------------------- 7. PERFORMANCE #}
+<section class="scene" id="performance" data-scene="performance" aria-labelledby="performance-title">
+  <div class="wrap scene-grid">
+    <div class="scene-copy">
+      <span class="kicker">06 · Model performance</span>
+      <h2 id="performance-title">How well does it work?</h2>
+      {% if card %}
+      <p class="lead">Measured on <b>{{ card.test_journeys }} held-out journeys</b> ({{ "{:,}".format(card.rows) }} readings) that the models never saw.
+        Of those readings, {{ "{:,}".format(card.positives) }} were followed by a real crossing within {{ '%g' % card.horizon_min }} minutes.</p>
+      <h3 class="sub-h"><span class="c">Classification</span>: the confusion matrix</h3>
+      <ul class="matrix-legend" aria-label="Classifier results on held-out readings">
+        <li class="tp"><b>{{ "{:,}".format(card.tp) }}</b> crossings caught <span>flagged, and a crossing followed</span></li>
+        <li class="fn"><b>{{ "{:,}".format(card.fn) }}</b> crossings missed <span>not flagged, but a crossing followed</span></li>
+        <li class="fp"><b>{{ "{:,}".format(card.fp) }}</b> false alarms <span>flagged, but no crossing followed</span></li>
+        <li class="tn"><b>{{ "{:,}".format(card.tn) }}</b> correctly quiet <span>not flagged, and no crossing followed</span></li>
+      </ul>
+      <div class="table-wrap">
+        <table class="metrics">
+          <thead><tr><th scope="col">Measure</th><th scope="col">Value</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Recall</td><td class="num">{{ '%.2f' % card.recall }}</td><td>Share of real crossings that were flagged in advance.</td></tr>
+            <tr><td>Precision</td><td class="num">{{ '%.2f' % card.precision }}</td><td>Share of flags that were followed by a real crossing.</td></tr>
+            <tr><td>False-positive rate</td><td class="num">{{ '%.3f' % card.false_positive_rate }}</td><td>Share of the {{ "{:,}".format(card.negatives) }} quiet readings that raised a false alarm.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 class="sub-h"><span class="r">Regression</span> <span class="pc-exp">Experimental</span></h3>
+      <div class="table-wrap">
+        <table class="metrics">
+          <tbody>
+            <tr><td>Minutes error on crossing cases</td><td class="num">{{ '%.1f' % card.mae_crossing }} min</td><td>Mean absolute error on the {{ "{:,}".format(card.positives) }} readings followed by a crossing.</td></tr>
+            <tr><td>Late estimates</td><td class="num">{{ '%.0f' % card.late_pct }}%</td><td>Of those, the share estimated later than the real crossing (mean {{ '%.0f' % card.mean_lateness }} min late).</td></tr>
+            <tr><td>Minutes error, all readings</td><td class="num">{{ '%.1f' % card.mae_all }} min</td><td>Mostly readings with no crossing (target capped at {{ '%g' % card.horizon_min }}), so this is <em>not</em> the error on crossing cases.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="data-note">Honest summary: the classifier catches about half of the readings that precede a crossing and raises many false alarms;
+        the minutes estimate is usually late. Source: computed on held-out journeys when the model was trained
+        (<code>python -m frostiq.model train</code>); see <code>docs/EVALUATION.md</code>. These test results were inspected during development,
+        so they are not a completely untouched final evaluation.</p>
+      {% else %}
+      <p class="notice warn">Model not trained, so no results to show{% if model_error %}: {{ model_error }}{% endif %}. See <code>docs/EVALUATION.md</code>.</p>
+      {% endif %}
+    </div>
+    <div class="scene-visual"><p class="visual-caption">3D confusion matrix: bar heights scale with the real counts (square-root scale)</p></div>
+  </div>
+</section>
+
+{# -------------------------------------------------------------- 8. LIMITS #}
+<section class="scene limits" id="limits" data-scene="limits" aria-labelledby="limits-title">
+  <div class="wrap">
+    <span class="kicker">07 · Limitations</span>
+    <h2 id="limits-title">An honest look at what this project is</h2>
+    <div class="limits-grid">
+      <article class="glass panel"><h3>Simulated, not validated</h3><p>All journeys and readings are simulated. FrostIQ has not been validated for real medicine or vaccine shipments and must not be used for safety decisions.</p></article>
+      <article class="glass panel"><h3>Predictions can be wrong</h3><p>Some crossings are missed, some warnings are false alarms, and the minutes estimate is experimental. A prediction is not a guarantee.</p></article>
+      <article class="glass panel"><h3>Built with</h3><p>Python, pandas, NumPy and scikit-learn for the ML; Flask and Jinja for the website; three.js, GSAP, Chart.js and vanilla JavaScript for the interface; pytest for testing.</p></article>
+      <article class="glass panel"><h3>Before real-world use</h3><p>Real sensor data, product-specific limits from experts, evaluation per excursion on fresh data, calibrated scores, and independent safety and regulatory review.</p></article>
+    </div>
+    <p class="muted small">Source code: <a href="{{ repo_url }}" rel="noopener">{{ repo_url }}</a> (repository access may be restricted).</p>
+    <div class="closing">
+      <p class="closing-line">Better visibility starts with understanding the journey.</p>
+      <a class="btn btn-primary" href="{{ url_for('frostiq.dashboard') }}">Open the Monitoring Console <span class="arrow" aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>
+<script type="application/json" id="model-counts">{{ ({"tp": card.tp, "fp": card.fp, "fn": card.fn, "tn": card.tn} if card else None) | tojson }}</script>
+{% endblock %}
+{% block scripts %}
+<script type="importmap">
+{"imports": {
+  "three": "{{ url_for('static', filename='vendor/three/three.module.min.js') }}",
+  "three/addons/": "{{ url_for('static', filename='vendor/three/') }}"
+}}
+</script>
+<script src="{{ url_for('static', filename='vendor/gsap/gsap.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/gsap/ScrollTrigger.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/prediction-centre.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/story.js') }}" defer></script>
+{% if not data_error %}<script src="{{ url_for('static', filename='js/journey-story.js') }}" defer></script>{% endif %}
+<script type="module" src="{{ url_for('static', filename='js/story3d.js') }}"></script>
+{% endblock %}
