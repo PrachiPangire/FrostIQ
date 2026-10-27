@@ -1,215 +1,384 @@
-# FrostIQ
+# FrostIQ — An ML-Based Predictive Cold-Chain Monitoring System
 
-ML-based predictive cold-chain temperature monitoring.
+FrostIQ is a machine-learning prototype for predictive cold-chain temperature monitoring. It explores how historical temperature readings can help estimate temperature-breach risk and provide early warnings for temperature-sensitive products such as vaccines and insulin.
 
-## Objective
+**Live Demo:** [https://frostiq-qd2b.onrender.com/](https://frostiq-qd2b.onrender.com/)  
+**GitHub Repository:** [https://github.com/PrachiPangire/FrostIQ](https://github.com/PrachiPangire/FrostIQ)
 
-FrostIQ predicts the **estimated number of minutes remaining before a container's
-temperature crosses a configurable threshold** (for example, 8 °C for a 2–8 °C
-vaccine fridge). The goal is to warn operators *before* stock is compromised, with
-enough lead time to act.
+> **Important:** FrostIQ is an academic prototype built using synthetic data. Its models have not been validated for real medicines, vaccines, or operational cold-chain safety.
 
-Simpler outputs, such as "will it cross within 30 minutes?", can be derived from
-the time-to-threshold estimate. They are not the main objective.
+---
 
-## Labelling principle
+## 1. Project Overview
 
-Labels come from simulated (and later, real) **future trajectories**:
+Maintaining the required temperature range during cold-chain transportation and storage is essential for temperature-sensitive products. A temperature excursion may occur because of door openings, cooling interruptions, power failures, or changing environmental conditions.
 
-- If the temperature crosses the threshold at a later point in the observed
-  period, the label is the number of minutes from the current reading to that
-  crossing.
-- If the temperature **never crosses** the threshold within the observed period,
-  no remaining-time value is invented. That reading is marked as *censored*: we
-  only know that the crossing (if any) happens after the observed period ends.
+FrostIQ explores a predictive approach that uses historical temperature readings to estimate the risk of a future temperature breach.
 
-## Data
+The primary objective is to estimate the **number of minutes remaining before the temperature crosses a configurable threshold**, such as 8 °C for a hypothetical 2–8 °C storage scenario.
 
-Development starts with **documented synthetic data**, which simulates normal
-cooling, gradual warming, door-opening disturbances and faster warming scenarios.
-All assumptions and limitations are documented in
-[docs/SYNTHETIC_DATA.md](docs/SYNTHETIC_DATA.md). Real public datasets may be
-investigated later.
+The system also provides a classification model to flag readings that indicate a potential breach within the next 120 minutes.
 
-> Synthetic results do not establish real-world medical safety or predictive
-> accuracy.
+## 2. Key Features
 
-Regenerate the data (writes to `data/raw/`, which Git ignores):
+- **Interactive 3D homepage:** Presents the cold-chain problem, monitoring journey, temperature risk, ML predictions, performance, and limitations.
+- **3D cold-chain visualization:** Includes a cooler, temperature display, lighting, frost and heat particles, and a journey visualization.
+- **Monitoring dashboard:** Replays synthetic temperature journeys and displays readings, status, charts, and prediction results.
+- **ML classification:** Estimates whether the temperature will cross 8 °C within the next 120 minutes.
+- **ML regression:** Estimates the remaining time until a potential temperature breach.
+- **Journey replay controls:** Supports selecting journeys, adjusting the replay position, stepping through readings, and playing recorded sequences.
+- **Temperature-risk indicators:** Displays normal, warning, and above-threshold states.
+- **Model evaluation:** Includes baseline comparisons, held-out journey evaluation, warning-timing metrics, and a journey-level bootstrap interval.
+- **Responsive fallback behavior:** Provides a static SVG cooler when WebGL is unavailable or reduced motion is preferred.
+- **Automated tests:** Includes tests for model behavior, features, evaluation, and the Flask web application.
 
-```powershell
-python -m frostiq.simulate                  # 120 journeys, seed 42, threshold 8.0 degC
-python -m frostiq.simulate --threshold 10   # any other threshold
-python -m frostiq.simulate --n-journeys 500 # dataset used from Milestone 2 onwards
+## 3. Technology Stack
+
+| Area | Technologies |
+|---|---|
+| Programming language | Python |
+| Web framework | Flask |
+| Machine learning | scikit-learn |
+| Data processing | pandas, NumPy |
+| Scientific computing | SciPy |
+| Model persistence | joblib |
+| Visualization | Matplotlib, Chart.js |
+| 3D graphics | three.js |
+| Animation and scrolling | GSAP, ScrollTrigger |
+| Frontend | HTML, CSS, JavaScript |
+| Testing | pytest |
+| Production server | Gunicorn |
+| Version control | Git, GitHub |
+| Deployment | Render |
+
+The three.js and GSAP assets used by the 3D homepage are included in `app/static/vendor/`, with relevant license information documented in that directory. The monitoring console loads Chart.js from a CDN, and the website uses Google Fonts for typography.
+
+## 4. Machine-Learning Approach
+
+FrostIQ uses two complementary prediction tasks.
+
+| Component | Algorithm | Prediction question | Output |
+|---|---|---|---|
+| Classification | `RandomForestClassifier` | Will the temperature cross 8 °C within the next 120 minutes? | `FLAGGED` or `NOT FLAGGED`, with an uncalibrated score |
+| Regression | `HistGradientBoostingRegressor` | How many minutes remain until a potential crossing? | Estimated minutes, capped at 120 minutes |
+
+### Classification
+
+The classifier predicts whether a temperature crossing will occur within the next 120 minutes. It uses a fixed 0.5 decision threshold and a class-weighted random forest.
+
+The displayed score is **not calibrated as a probability**.
+
+### Regression
+
+The regressor estimates the remaining time until a potential temperature crossing. The target is capped at 120 minutes.
+
+When the estimate is near the upper limit, the interface displays `Beyond 120 min` rather than presenting the cap as an exact breach time.
+
+### Prediction rules
+
+The application avoids presenting a forecast when the available information does not support one. For example:
+
+- The latest reading is already above the threshold, indicating an observed crossing.
+- Less than 30 minutes of historical readings are available.
+- The selected threshold differs from the threshold used to train the model.
+- A required trained model is unavailable.
+
+The classification and regression models may disagree. When they do, the prediction interface indicates the disagreement rather than treating both outputs as equivalent.
+
+### Data leakage prevention
+
+Features use readings available only up to the current replay position. Training and evaluation are separated by journey, so readings from a held-out journey are not used to train the models.
+
+The current dataset contains 500 synthetic journeys, with 400 training journeys used for model fitting. Evaluation uses held-out journeys.
+
+## 5. Dataset and Data Generation
+
+FrostIQ currently uses a documented synthetic dataset rather than real cold-chain telemetry.
+
+The simulator models scenarios such as:
+
+- Normal cooling behavior.
+- Gradual temperature increases.
+- Door-opening disturbances.
+- Faster warming scenarios.
+
+Labels are derived from future temperature trajectories. When a crossing occurs during the observed period, the remaining time is measured from the current reading to the crossing. When no crossing is observed, the remaining-time target is treated as censored rather than assigning an invented crossing time.
+
+Dataset assumptions, generation details, and limitations are documented in [`docs/SYNTHETIC_DATA.md`](docs/SYNTHETIC_DATA.md).
+
+The committed dataset is located at:
+
+`data/raw/synthetic_readings.csv`
+
+**Synthetic data cannot establish real-world predictive accuracy or medical safety.** Real public datasets may be investigated in future work.
+
+## 6. Model Evaluation and Limitations
+
+The project evaluates baseline methods and ML models using held-out journeys. Evaluation includes regression errors, warning timing, classification confusion matrices, and a journey-level bootstrap interval.
+
+See [`docs/EVALUATION.md`](docs/EVALUATION.md) for the evaluation methodology, metrics, and detailed findings.
+
+Current evaluation indicates that the models are **not yet reliable enough for real-world cold-chain decisions**:
+
+- The classifier catches approximately half of the readings preceding a crossing, with a reported recall of about 0.51 and many false alarms.
+- For readings that cross the threshold, time-to-crossing estimates have errors averaging approximately 38 minutes.
+- Regression predictions are usually too late.
+- Door openings and sudden equipment failures cannot necessarily be predicted from past temperatures alone.
+- Results on training journeys are in-sample and may look better than performance on unseen journeys.
+
+These limitations are important when interpreting the dashboard and prediction results. FrostIQ is intended for academic demonstration and further experimentation, not as a substitute for validated monitoring equipment, established safety procedures, or qualified professional judgment.
+
+## 7. Website and Dashboard
+
+### Interactive homepage
+
+The homepage presents eight sections:
+
+1. Home
+2. The Problem
+3. The Journey
+4. Temperature Risk
+5. How It Works
+6. AI Predictions
+7. Performance
+8. Limitations
+
+The three.js scene includes a programmatically constructed cold-chain cooler, hinged lid, display, lighting, frost and heat particles, a journey route, a temperature column with a threshold ring, an ML model core, and a confusion matrix based on held-out counts.
+
+GSAP ScrollTrigger connects scene changes to page scrolling without hijacking normal scrolling. When WebGL is unavailable or reduced motion is enabled, the page uses a static SVG cooler fallback.
+
+### Monitoring console
+
+The console is available at `/dashboard` and provides:
+
+- Synthetic journey selection and replay.
+- Recorded temperature and status information.
+- Classification and regression prediction cards.
+- Temperature charts and playback controls.
+- Training versus held-out journey indicators.
+- Expandable journey summaries, recent readings, status rules, and model information.
+
+The replay controls operate on recorded synthetic data. **This is not a live sensor or IoT telemetry system.**
+
+### Temperature-status rules
+
+- **Above threshold:** The latest reading is strictly greater than the selected threshold.
+- **Warning:** The temperature is not above the threshold, but the margin is at most 1 °C, or the classifier flags a likely crossing within the prediction horizon.
+- **Normal:** Neither warning condition applies.
+
+The default threshold is 8 °C. Forecasts are available only for the threshold used during model training. Changing the display threshold updates the status and chart, but does not retrain the model or recalculate forecasts for a new threshold.
+
+## 8. Live Deployment
+
+FrostIQ is deployed as a Python web service on Render.
+
+- **Platform:** Render
+- **Application framework:** Flask
+- **Production server:** Gunicorn
+- **GitHub branch:** `main`
+
+**Open the deployed application:** [FrostIQ Live Demo](https://frostiq-qd2b.onrender.com/)
+
+The application loads the committed dataset and trained model from the repository. The Render service uses the following configuration.
+
+**Build command**
+
+```bash
+pip install -r requirements.txt
 ```
 
-Evaluate the baselines and ML models (prints MAE tables, warning timing, the
-crossing classifier's confusion matrix and a journey-level bootstrap interval;
-about 20 s):
+**Start command**
+
+```bash
+gunicorn --bind 0.0.0.0:$PORT run:app
+```
+
+Render's free instances may spin down after inactivity, so the first request after a period of inactivity may take longer to respond.
+
+The application should be monitored for startup failures, memory limitations, and dependency compatibility as the project evolves.
+
+## 9. Local Setup and Installation
+
+### Prerequisites
+
+- Python 3.14 or a compatible version satisfying the project's Python requirement.
+- Git.
+- A terminal such as Windows PowerShell.
+- Internet access to install dependencies and load the console's external chart library and web fonts.
+
+### Clone the repository
+
+```powershell
+git clone https://github.com/PrachiPangire/FrostIQ.git
+cd FrostIQ
+```
+
+### Create and activate a virtual environment
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks activation, you can permit local activation scripts for your Windows user:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Only change this setting if needed and if you understand the implications.
+
+### Install dependencies
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+The project uses an editable local package installation through its requirements configuration.
+
+### Run the website
+
+The repository includes the dataset and trained model needed by the deployed application. For the normal local run, start the website with:
+
+```powershell
+python run.py
+```
+
+Open:
+
+[http://127.0.0.1:5000](http://127.0.0.1:5000)
+
+To open the monitoring console directly, visit:
+
+[http://127.0.0.1:5000/dashboard](http://127.0.0.1:5000/dashboard)
+
+Stop the local server with `Ctrl+C`.
+
+## 10. Regenerating Data and Training Models
+
+**Note:** Regenerating data or retraining models changes local project artifacts. These steps are optional and are not required simply to run the existing application.
+
+Run commands from the repository root with the virtual environment activated.
+
+### Generate synthetic journeys
+
+```powershell
+python -m frostiq.simulate
+```
+
+The default generation settings are 120 journeys, seed 42, and an 8.0 °C threshold.
+
+Generate the larger dataset used from Milestone 2 onwards:
+
+```powershell
+python -m frostiq.simulate --n-journeys 500
+```
+
+Generate data with another threshold:
+
+```powershell
+python -m frostiq.simulate --threshold 10
+```
+
+### Train and save the models
+
+```powershell
+python -m frostiq.model train
+```
+
+The trained model is saved to `models/frostiq_model.joblib`. Training takes approximately 25 seconds under the documented development setup; actual time depends on the environment.
+
+**Warning:** Retraining replaces the saved model artifact. Keep a backup if you need to preserve the current model.
+
+### Evaluate the models
 
 ```powershell
 python -m frostiq.evaluate
 ```
 
-See [docs/EVALUATION.md](docs/EVALUATION.md) for the methodology, metrics and
-limitations.
+This command evaluates baseline methods and ML models, prints regression metrics and warning-timing results, produces the crossing classifier's confusion matrix, and calculates a journey-level bootstrap interval.
 
-## Website
+See [`docs/FEATURES.md`](docs/FEATURES.md) for feature and target definitions and [`docs/EVALUATION.md`](docs/EVALUATION.md) for the evaluation methodology.
 
-FrostIQ includes a Flask website with two parts:
+## 11. Running the Tests
 
-- **A 3D story homepage** with eight sections: Home, The Problem, The Journey,
-  Temperature Risk, How It Works, AI Predictions, Performance, and Limitations.
-  A real-time **three.js** scene sits behind the page: a cold-chain cooler built
-  in code (hinged lid, live display, lighting, frost and heat particles), a 3D
-  journey route, a temperature column with a threshold ring, an ML "model core",
-  and a 3D confusion matrix drawn from the real held-out counts. **GSAP
-  ScrollTrigger** links the scenes to scrolling. Scrolling itself is never
-  hijacked. If WebGL is unavailable, or the system "reduce motion" setting is on,
-  a static SVG cooler is shown instead and every section still works.
-- **A monitoring console** (`/dashboard`) that replays the synthetic journeys.
-
-Both pages share the **AI Prediction Centre**, which always shows two cards from
-the API for the selected journey and moment:
-
-| Card | Model | Question | Output |
-|---|---|---|---|
-| **Classification** (risk decision, cyan/mint) | `RandomForestClassifier` | Will the temperature cross 8 °C within the next 120 minutes? | FLAGGED / NOT FLAGGED, plus the uncalibrated score |
-| **Regression** (numeric estimate, amber, **Experimental**) | `HistGradientBoostingRegressor` | If a crossing is estimated, how many minutes until it happens? | Estimated minutes, or "Beyond 120 min" when the output sits at the cap |
-
-Classification answers a yes/no risk question. Regression estimates a number,
-such as minutes until a possible breach. When there's no valid prediction, both
-cards say why instead of showing a value:
-- the reading is already above the threshold (an *observed* crossing)
-- there's less than 30 minutes of history
-- the threshold differs from the model's
-- no model is trained
-
-The libraries are **vendored** in `app/static/vendor/` (three.js 0.160.0, MIT;
-GSAP 3.12.5 with ScrollTrigger, GreenSock standard "no charge" licence), with
-licence files and SHA-256 checksums in `app/static/vendor/README.md`. The 3D
-homepage needs no internet connection apart from the optional web fonts.
-
-### Start it (PowerShell, from `D:\FrostIQ`)
-
-```powershell
-.venv\Scripts\Activate.ps1
-python -m frostiq.simulate --n-journeys 500   # 1. dataset (skip if data/raw/ already has it)
-python -m frostiq.model train                 # 2. train and save models/frostiq_model.joblib (~25 s)
-python run.py                                 # 3. start the website
-```
-
-Open **http://127.0.0.1:5000**. Scroll through the story, or press **Open
-Monitoring Console** (also always in the navigation bar). Stop the server with
-`Ctrl+C`. After changing templates or code, restart the server so it picks up the
-changes.
-
-Step 2 trains the same two models as `frostiq.evaluate`: a gradient-boosting
-regressor for the minutes to crossing, and a class-weighted random forest for
-"crossing within 120 min?". Both are fitted on the 400 training journeys only,
-and the held-out metrics are saved with the model. The model file is ignored by
-Git. It's a pickle file, so only load model files you created yourself. Without
-a model, the website still works and shows why forecasts are unavailable.
-
-### Using the console
-
-- **Layout:** journey and replay position first; then what was **observed**
-  (recorded temperature and recorded status); then what the models **predict**
-  (the two-card AI Prediction Centre); then the chart with the playback
-  controls. The journey summary, recent readings, status rules and model card
-  are in expandable sections below.
-- **Journey:** choose any of the synthetic journeys. Filters show held-out
-  journeys (never seen in training) or journeys that crossed the threshold. If a
-  filter matches nothing, the previous journey's readings are cleared from view
-  and an empty state is shown.
-- **Replay position:** drag the slider, step reading by reading, or press
-  **Play**. The "current" reading is the replay position. Features and forecasts
-  only use readings up to that point. This is a replay of recorded data, **not
-  live telemetry**.
-- **Threshold:** 8 °C is an experimental default. A crossing means a reading
-  *strictly above* the threshold. Forecasts exist only for the threshold the
-  model was trained on. Other thresholds still update the status, margin, chart
-  and readings, and a note says that no estimate is recalculated.
-- **AI Prediction Centre:** the Classification card (FLAGGED / NOT FLAGGED,
-  with a score bar and the fixed 0.5 decision line) and the experimental
-  Regression card (estimated minutes; an output within 5 min of the 120-min cap
-  reads as "Beyond 120 min", not as a crossing time). Predictions need at least
-  30 minutes of readings. A reading already above the threshold is shown as an
-  *observed* crossing, not a prediction. When the two models disagree, the
-  Regression card says so.
-- **Status rules:**
-  - **Above threshold:** the latest reading is strictly above the threshold.
-  - **Warning:** not above, and the margin is ≤ 1 °C, or the classifier flags a
-    likely crossing within the horizon.
-  - **Normal:** neither condition holds.
-- **Show hindsight:** reveals the recorded future readings and when the journey
-  actually crossed. That's information a real-time system wouldn't have.
-
-The console loads Chart.js 4.4.1 from a CDN, and both pages load web fonts from
-Google Fonts. Offline, the chart is replaced by a notice, the latest 12 readings
-and all other panels still work, and system fonts are used. The homepage's 3D
-libraries are local. Its journey data loads only when you scroll near that
-section, and the 3D scene pauses when the tab is hidden.
-
-### Website limitations
-
-- Synthetic data and an academic prototype: **not validated for real medicines
-  or vaccines**.
-- On held-out journeys, the classifier catches about half of the readings that
-  precede a crossing, with many false alarms, and minute estimates are usually
-  too late (see [docs/EVALUATION.md](docs/EVALUATION.md)). Door openings and
-  sudden failures can't be foreseen from past temperatures.
-- Forecasts on *training* journeys are in-sample and look better than they
-  really are. The console labels each journey as training or held-out.
-- The Flask development server (`python run.py`) is for local use only.
-
-## Running the tests
+Run the automated test suite from the repository root:
 
 ```powershell
 python -m pytest -q
 ```
 
-## Project structure
+The tests cover model behavior, feature generation, evaluation, and the Flask web application.
 
-```
+## 12. Project Structure
+
+```text
 FrostIQ/
-├── data/raw/           # generated or original data (not committed)
-├── data/processed/     # cleaned data and features (not committed)
-├── notebooks/          # exploration and visual checks
-├── src/frostiq/        # core Python package (simulation, features, models)
-├── models/             # saved trained models (not committed)
-├── app/                # Flask website: routes, services, templates, static files
-├── run.py              # starts the website (python run.py)
-├── docs/               # synthetic data assumptions, feature and target definitions
-├── tests/              # automated tests
+├── app/
+│   ├── routes.py
+│   ├── services.py
+│   ├── templates/
+│   └── static/
+│       ├── css/
+│       ├── js/
+│       └── vendor/
+├── data/
+│   └── raw/
+│       └── synthetic_readings.csv
+├── docs/
+│   ├── EVALUATION.md
+│   ├── FEATURES.md
+│   └── SYNTHETIC_DATA.md
+├── models/
+│   └── frostiq_model.joblib
+├── src/
+│   └── frostiq/
+│       ├── simulate.py
+│       ├── features.py
+│       ├── model.py
+│       └── evaluate.py
+├── tests/
 ├── requirements.txt
+├── pyproject.toml
+├── run.py
 └── README.md
 ```
 
-## Setup (Windows)
+The repository also includes frontend assets, vendored JavaScript libraries and their license information, HTML templates, and automated tests.
 
-Requires Python 3.14.
+## 13. Development Milestones
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-```
+- [x] **Milestone 1A:** Environment and project structure.
+- [x] **Milestone 1B:** Synthetic temperature dataset with time-to-threshold labels.
+- [x] **Milestone 2:** Past-only features, 120-minute capped target, and journey-level data split.
+- [x] **Milestone 3A:** Baseline comparison and initial ML model evaluation.
+- [x] **Milestone 3B:** Warning-timing metrics, crossing classifier, and journey-level bootstrap evaluation.
+- [x] **Milestone 4:** Flask website with 3D homepage, monitoring console, and ML forecasts.
+- [x] **Deployment:** GitHub repository and live Render web service.
 
-If PowerShell blocks the activation script, run this once:
-`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+The evaluation milestones identified substantial model limitations. Improving generalization, reducing false alarms, improving warning lead time, and evaluating on real-world data remain important future research directions.
 
-## Status
+## 14. Future Improvements
 
-- [x] Milestone 1a: environment and project structure
-- [x] Milestone 1b: synthetic temperature dataset with time-to-threshold labels
-- [x] Milestone 2: past-only features, 120-minute capped target, journey-level split
-  ([docs/FEATURES.md](docs/FEATURES.md))
-- [x] Milestone 3A: baselines vs. first ML model ([docs/EVALUATION.md](docs/EVALUATION.md)).
-  Result: not yet reliable. On readings that do cross, errors average about 38 min,
-  and crossings are predicted too late
-- [x] Milestone 3B: warning-timing metrics, crossing classifier, journey-level bootstrap.
-  Result: the classifier catches about half of crossing readings (recall 0.51), with many
-  false alarms, and regression predictions are usually late. **Not suitable for real
-  medicines or vaccines.**
-- [x] Milestone 4: Flask website with landing page, journey replay console and
-  ML forecast (`python run.py`)
+Potential next steps include:
+
+- Investigating suitable public cold-chain and temperature-monitoring datasets.
+- Comparing model performance on real-world data when available.
+- Improving warning lead time and reducing false alarms.
+- Exploring better handling of censored time-to-event targets.
+- Testing model calibration and decision thresholds.
+- Adding real sensor integration only after suitable validation.
+- Expanding deployment monitoring and reproducibility documentation.
+
+These are proposed improvements, not claims that the features have already been implemented.
+
+## 15. License and Third-Party Assets
+
+The repository includes license information for its vendored three.js and GSAP assets under `app/static/vendor/`. Consult those files before redistributing or modifying the third-party libraries.
+
+A separate project-wide license has not been specified in this README.
+
+---
+
+**FrostIQ** is an academic machine-learning prototype demonstrating a complete development workflow: synthetic data generation, feature engineering, model training, evaluation, web application development, testing, version control, and deployment.
